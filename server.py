@@ -26,10 +26,6 @@ def main():
         thread = threading.Thread(target=timer, args=(configs.assigned, configs.ip_pool))
         thread.start()
 
-        # Show all the assigned ip addresses with client details
-        thread1 = threading.Thread(target=show_assigned, args=(configs,))
-        thread1.start()
-
         while True:
             #data from client
             data = server.recv(1024)
@@ -38,14 +34,7 @@ def main():
             sleep(2)
 
 
-#thread function 1
-def show_assigned(configs):
-    while True:
-        sleep(1)
-        configs.show()
-        print()
-
-#thread function 2
+#thread function 
 def handle(data, server, configs):
     #server configs
     srv_conf = DHCPServer(configs)
@@ -58,7 +47,10 @@ def handle(data, server, configs):
 
         #OFFER
         srv_conf.DHCPOffer()
-        server.sendto(srv_conf.packet, ('<broadcast>', 68))
+        client_port = data[0]  # Assuming the source port is in the first 2 bytes
+        print(f"Received DHCP Discover from client port: {client_port}")
+
+        server.sendto(srv_conf.packet, ('<broadcast>', client_port))
         sleep(1)
 
         #REQUEST
