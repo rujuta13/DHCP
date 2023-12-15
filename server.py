@@ -27,30 +27,32 @@ def main():
         thread.start()
 
         while True:
-            #data from client
-            data = server.recv(1024)
-            thread = threading.Thread(target=handle, args=(data, server, configs))
-            thread.start()
+            # data from client
+            data, client_address = server.recvfrom(1024)
+            print("Connected to a client on",client_address[1])
+            new_thread = threading.Thread(target=handle, args=(data, server, configs, client_address))
+            new_thread.start()
             sleep(2)
 
 
+
 #thread function 
-def handle(data, server, configs):
+def handle(data, server, configs, client_address):
     #server configs
-    srv_conf = DHCPServer(configs)
+    srv_conf = DHCPServer(configs, client_address)
     srv_conf.DHCPReceive(data)
 
     #DHCP Discover
+
     if data[242] == 1:
         if srv_conf.currIP is None:
             return
 
         #OFFER
         srv_conf.DHCPOffer()
-        client_port = data[0]  # Assuming the source port is in the first 2 bytes
-        print(f"Received DHCP Discover from client port: {client_port}")
+        
+        server.sendto(srv_conf.packet, client_address)
 
-        server.sendto(srv_conf.packet, ('<broadcast>', client_port))
         sleep(1)
 
         #REQUEST
@@ -63,7 +65,8 @@ def handle(data, server, configs):
 
     #ACK only sent if server and client match
     srv_conf.DHCPAck()
-    server.sendto(srv_conf.packet, ('<broadcast>', 68))
+    server.sendto(srv_conf.packet, ('<broadcast>', client_address[1]))
+
     sleep(1)
 
 
@@ -139,13 +142,15 @@ class IPData:
 
 
 class DHCPServer:
-    def __init__(self, configs):
+    def __init__(self, configs, client_address):
         # receive
         self.transaction_ID = b''
         self.client_mac = ''
         self.host_name = ''
         self.req = False
         self.server_unMatch = False
+        self.client_address = client_address
+        self.client_source_ports = set()
 
         # extract
         self.subnet_mask = ip_to_hex(configs.subnet_mask)
@@ -203,6 +208,9 @@ class DHCPServer:
                 self.assign_ip()
             else:
                 self.server_unMatch = True
+
+        # Extract and print the client's port from the client's address
+        self.client_source_ports.add(self.client_address[1])
 
     def DHCPBody(self):
         packet = b''

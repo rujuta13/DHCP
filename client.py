@@ -113,19 +113,13 @@ def main():
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as skt:
         skt.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         skt.settimeout(20)
-        try:
-            skt.bind((dhcpClient.IP, 68))
-
-            # port = randint(1024, 5000)
-            # skt.bind((dhcpClient.IP, port))
-        except Exception as e:
-            print(e)
-            skt.close()
-            exit()
-
+        
         dhcpClient.DHCPDiscover()
         skt.sendto(dhcpClient.packet, ('<broadcast>', 67))
         print('\n[Socket] DHCP Discover Sent\n')
+
+        local_port = skt.getsockname()[1]
+        print(f'Client dynamically assigned port: {local_port} (for reference on Windows)')
 
         dhcpClient.dis_sent_time = int(time.time())
         thread = threading.Thread(target=timer, args=(dhcpClient, skt))
@@ -169,15 +163,6 @@ def timer(dhcpClient, skt):
         if dhcpClient.IP != '0.0.0.0':
             if int(dhcpClient.lease_time) == 0:
                 pass
-            # elif int(dhcpClient.lease_time) == int(dhcpClient.fix_lease_time) / 2:
-            #     dhcpClient.DHCPRequest()
-            #     skt.sendto(dhcpClient.packet, ('<broadcast>', 67))
-            #     print('[RENEWING]\n[Socket] DHCP Request Sent\n')
-            # elif int(dhcpClient.lease_time) <= int(int(dhcpClient.fix_lease_time) * 1/8):
-            #     dhcpClient.DHCPDiscover()
-            #     skt.sendto(dhcpClient.packet, ('<broadcast>', 67))
-            #     dhcpClient.dis_sent_time = int(time.time())
-            #     print('[REBINDING]\n[Socket] Discover Sent Again\n')
 
         # DHCP DISCOVER TIMEOUT
         current_time = int(time.time())
